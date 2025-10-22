@@ -26,15 +26,24 @@ CREATE TABLE productos (
   stock INT DEFAULT 0
 );
 
--- Tabla de ventas
+-- Tabla de ventas (encabezado)
 CREATE TABLE ventas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   cliente_nombre VARCHAR(100) NOT NULL,
   cliente_email VARCHAR(100) NOT NULL,
   cliente_telefono VARCHAR(20) NOT NULL,
+  total DECIMAL(10,2) NOT NULL,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de detalle de ventas (productos de cada venta)
+CREATE TABLE detalle_ventas (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  venta_id INT NOT NULL,
   producto_id INT NOT NULL,
   cantidad INT NOT NULL,
-  total DECIMAL(10,2) NOT NULL,
-  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  precio_unitario DECIMAL(10,2) NOT NULL,
+  subtotal DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE,
   FOREIGN KEY (producto_id) REFERENCES productos(id)
 );

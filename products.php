@@ -2,6 +2,35 @@
 include('includes/auth.php');
 include('includes/db.php');
 
+// Eliminar producto
+if (isset($_GET['eliminar'])) {
+  $id = intval($_GET['eliminar']);
+  $conn->query("DELETE FROM productos WHERE id = $id");
+  header('Location: products.php');
+  exit;
+}
+
+// Actualizar producto
+if (isset($_POST['actualizar'])) {
+  $id = intval($_POST['id']);
+  $marca = $_POST['marca'];
+  $descripcion = $_POST['descripcion'];
+  $precio = $_POST['precio'];
+  $categoria = $_POST['categoria'];
+  $stock = $_POST['stock'];
+
+  $sql = "UPDATE productos SET
+          marca = '$marca',
+          descripcion = '$descripcion',
+          precio = '$precio',
+          categoria = '$categoria',
+          stock = '$stock'
+          WHERE id = $id";
+  $conn->query($sql);
+  header('Location: products.php');
+  exit;
+}
+
 // Guardar nuevo producto
 if (isset($_POST['guardar'])) {
   $marca = $_POST['marca'];
@@ -13,6 +42,16 @@ if (isset($_POST['guardar'])) {
   $sql = "INSERT INTO productos (marca, descripcion, precio, categoria, stock)
           VALUES ('$marca', '$descripcion', '$precio', '$categoria', '$stock')";
   $conn->query($sql);
+  header('Location: products.php');
+  exit;
+}
+
+// Obtener producto a editar
+$productoEditar = null;
+if (isset($_GET['editar'])) {
+  $id = intval($_GET['editar']);
+  $result = $conn->query("SELECT * FROM productos WHERE id = $id");
+  $productoEditar = $result->fetch_assoc();
 }
 
 // Obtener productos
@@ -35,14 +74,35 @@ $productos = $conn->query("SELECT * FROM productos ORDER BY marca, precio ASC");
     </div>
 
     <div class="form-section">
-      <h2>Agregar Nuevo Producto</h2>
+      <h2><?php echo $productoEditar ? 'Editar Producto' : 'Agregar Nuevo Producto'; ?></h2>
       <form method="POST">
-        <input type="text" name="marca" placeholder="Marca" required>
-        <input type="text" name="descripcion" placeholder="Descripción" required>
-        <input type="number" step="0.01" name="precio" placeholder="Precio" required>
-        <input type="text" name="categoria" placeholder="Categoría (opcional)">
-        <input type="number" name="stock" placeholder="Stock (opcional)">
-        <button type="submit" name="guardar">Guardar Producto</button>
+        <?php if ($productoEditar): ?>
+          <input type="hidden" name="id" value="<?php echo $productoEditar['id']; ?>">
+        <?php endif; ?>
+
+        <input type="text" name="marca" placeholder="Marca" required
+               value="<?php echo $productoEditar ? htmlspecialchars($productoEditar['marca']) : ''; ?>">
+
+        <input type="text" name="descripcion" placeholder="Descripción" required
+               value="<?php echo $productoEditar ? htmlspecialchars($productoEditar['descripcion']) : ''; ?>">
+
+        <input type="number" step="0.01" name="precio" placeholder="Precio" required
+               value="<?php echo $productoEditar ? $productoEditar['precio'] : ''; ?>">
+
+        <input type="text" name="categoria" placeholder="Categoría (opcional)"
+               value="<?php echo $productoEditar ? htmlspecialchars($productoEditar['categoria']) : ''; ?>">
+
+        <input type="number" name="stock" placeholder="Stock (opcional)"
+               value="<?php echo $productoEditar ? $productoEditar['stock'] : ''; ?>">
+
+        <div class="form-buttons">
+          <?php if ($productoEditar): ?>
+            <button type="submit" name="actualizar">Actualizar Producto</button>
+            <a href="products.php" class="btn-cancelar">Cancelar</a>
+          <?php else: ?>
+            <button type="submit" name="guardar">Guardar Producto</button>
+          <?php endif; ?>
+        </div>
       </form>
     </div>
 
@@ -61,6 +121,13 @@ $productos = $conn->query("SELECT * FROM productos ORDER BY marca, precio ASC");
               <?php if ($p['stock'] !== null): ?>
                 <p><strong>Stock:</strong> <?php echo $p['stock']; ?> unidades</p>
               <?php endif; ?>
+
+              <div class="acciones">
+                <a href="products.php?editar=<?php echo $p['id']; ?>" class="btn-editar">Editar</a>
+                <a href="products.php?eliminar=<?php echo $p['id']; ?>"
+                   class="btn-eliminar"
+                   onclick="return confirm('¿Estás seguro de eliminar este producto?')">Eliminar</a>
+              </div>
             </div>
           <?php endwhile; ?>
         <?php else: ?>
