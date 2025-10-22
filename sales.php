@@ -70,26 +70,65 @@ if (isset($_POST['vender'])) {
   $pdf->SetFont('Arial','B',9);
   $pdf->SetFillColor(255, 107, 53);
   $pdf->SetTextColor(255, 255, 255);
-  $pdf->Cell(80,8,'Producto',1,0,'C',true);
-  $pdf->Cell(30,8,'Precio Unit.',1,0,'C',true);
-  $pdf->Cell(20,8,'Cant.',1,0,'C',true);
-  $pdf->Cell(30,8,'Subtotal',1,1,'C',true);
+  $pdf->Cell(70,8,'Producto',1,0,'C',true);
+  $pdf->Cell(25,8,'P. Unit.',1,0,'C',true);
+  $pdf->Cell(15,8,'Cant.',1,0,'C',true);
+  $pdf->Cell(25,8,'Subtotal',1,1,'C',true);
 
   $pdf->SetFont('Arial','',9);
   $pdf->SetTextColor(0, 0, 0);
 
+  $ahorro_total = 0;
+
   foreach ($productos_venta as $item) {
-    $pdf->Cell(80,7,$item['nombre'],1,0);
-    $pdf->Cell(30,7,'$' . number_format($item['precio'], 2),1,0,'R');
-    $pdf->Cell(20,7,$item['cantidad'],1,0,'C');
-    $pdf->Cell(30,7,'$' . number_format($item['precio'] * $item['cantidad'], 2),1,1,'R');
+    $nombre_corto = substr($item['nombre'], 0, 35);
+    $tiene_descuento = isset($item['tiene_descuento']) && $item['tiene_descuento'];
+
+    $pdf->Cell(70,7,$nombre_corto,1,0);
+
+    if ($tiene_descuento && isset($item['precio_original'])) {
+      // Mostrar precio con descuento
+      $pdf->SetTextColor(150, 150, 150);
+      $pdf->Cell(25,7,'$' . number_format($item['precio_original'], 2),1,0,'R');
+      $pdf->SetTextColor(0, 0, 0);
+
+      $ahorro = ($item['precio_original'] - $item['precio']) * $item['cantidad'];
+      $ahorro_total += $ahorro;
+    } else {
+      $pdf->Cell(25,7,'$' . number_format($item['precio'], 2),1,0,'R');
+    }
+
+    $pdf->Cell(15,7,$item['cantidad'],1,0,'C');
+    $pdf->Cell(25,7,'$' . number_format($item['precio'] * $item['cantidad'], 2),1,1,'R');
+
+    // Si hay descuento, agregar una línea adicional
+    if ($tiene_descuento && isset($item['precio_original'])) {
+      $pdf->SetFont('Arial','I',8);
+      $pdf->SetTextColor(255, 107, 53);
+      $pdf->Cell(70,5,'  Precio con descuento',0,0);
+      $pdf->Cell(25,5,'$' . number_format($item['precio'], 2),0,0,'R');
+      $pdf->Cell(15,5,'',0,0);
+      $descuento_porcentaje = (($item['precio_original'] - $item['precio']) / $item['precio_original']) * 100;
+      $pdf->Cell(25,5,'-' . round($descuento_porcentaje) . '%',0,1,'R');
+      $pdf->SetFont('Arial','',9);
+      $pdf->SetTextColor(0, 0, 0);
+    }
+  }
+
+  // Ahorro total si aplica
+  if ($ahorro_total > 0) {
+    $pdf->SetFont('Arial','B',10);
+    $pdf->SetTextColor(34, 139, 34);
+    $pdf->Cell(110,7,'AHORRO TOTAL',1,0,'R');
+    $pdf->Cell(25,7,'-$' . number_format($ahorro_total, 2),1,1,'R');
+    $pdf->SetTextColor(0, 0, 0);
   }
 
   // Total
   $pdf->SetFont('Arial','B',11);
-  $pdf->Cell(130,8,'TOTAL',1,0,'R');
+  $pdf->Cell(110,8,'TOTAL A PAGAR',1,0,'R');
   $pdf->SetTextColor(255, 107, 53);
-  $pdf->Cell(30,8,'$' . number_format($total_general, 2),1,1,'R');
+  $pdf->Cell(25,8,'$' . number_format($total_general, 2),1,1,'R');
 
   $pdf->Ln(5);
   $pdf->SetFont('Arial','I',9);
@@ -143,12 +182,24 @@ while ($p = $productos_query->fetch_assoc()) {
             <?php
             $productos_lista = $conn->query("SELECT * FROM productos ORDER BY marca");
             while ($p = $productos_lista->fetch_assoc()):
+              $precio_venta = $p['precio_descuento'] ? $p['precio_descuento'] : $p['precio'];
+              $tiene_descuento = $p['precio_descuento'] ? true : false;
             ?>
               <option value="<?php echo $p['id']; ?>"
                       data-nombre="<?php echo htmlspecialchars($p['marca'] . ' - ' . $p['descripcion']); ?>"
-                      data-precio="<?php echo $p['precio']; ?>"
+                      data-precio="<?php echo $precio_venta; ?>"
+                      data-precio-original="<?php echo $p['precio']; ?>"
+                      data-tiene-descuento="<?php echo $tiene_descuento ? '1' : '0'; ?>"
                       data-stock="<?php echo $p['stock']; ?>">
-                <?php echo htmlspecialchars($p['marca']) . " - " . htmlspecialchars($p['descripcion']) . " ($" . number_format($p['precio'], 2) . ") - Stock: " . $p['stock']; ?>
+                <?php
+                  echo htmlspecialchars($p['marca']) . " - " . htmlspecialchars($p['descripcion']);
+                  if ($tiene_descuento) {
+                    echo " (OFERTA: $" . number_format($precio_venta, 2) . " - antes: $" . number_format($p['precio'], 2) . ")";
+                  } else {
+                    echo " ($" . number_format($precio_venta, 2) . ")";
+                  }
+                  echo " - Stock: " . $p['stock'];
+                ?>
               </option>
             <?php endwhile; ?>
           </select>
@@ -207,6 +258,8 @@ while ($p = $productos_query->fetch_assoc()) {
       const productoId = select.value;
       const nombre = option.dataset.nombre;
       const precio = parseFloat(option.dataset.precio);
+      const tieneDescuento = option.dataset.tieneDescuento === '1';
+      const precioOriginal = parseFloat(option.dataset.precioOriginal);
 
       // Verificar si el producto ya está en el carrito
       const existente = carrito.find(item => item.producto_id === productoId);
@@ -217,6 +270,8 @@ while ($p = $productos_query->fetch_assoc()) {
           producto_id: productoId,
           nombre: nombre,
           precio: precio,
+          precio_original: precioOriginal,
+          tiene_descuento: tieneDescuento,
           cantidad: cantidad
         });
       }
@@ -255,11 +310,24 @@ while ($p = $productos_query->fetch_assoc()) {
         const subtotal = item.precio * item.cantidad;
         total += subtotal;
 
+        let precioHtml = '';
+        if (item.tiene_descuento) {
+          precioHtml = `
+            <p style="margin: 4px 0;">
+              <span style="text-decoration: line-through; color: #999; font-size: 0.9em;">$${item.precio_original.toFixed(2)}</span>
+              <span style="color: #ff6b35; font-weight: 700; margin-left: 8px;">$${item.precio.toFixed(2)}</span>
+              <span style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 8px;">OFERTA</span>
+            </p>
+          `;
+        } else {
+          precioHtml = `<p>Precio unitario: $${item.precio.toFixed(2)}</p>`;
+        }
+
         html += `
           <div class="carrito-item">
             <div class="item-info">
               <h4>${item.nombre}</h4>
-              <p>Precio unitario: $${item.precio.toFixed(2)}</p>
+              ${precioHtml}
               <p>Cantidad: ${item.cantidad}</p>
             </div>
             <div class="item-total">

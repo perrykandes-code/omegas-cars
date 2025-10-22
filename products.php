@@ -16,6 +16,7 @@ if (isset($_POST['actualizar'])) {
   $marca = $_POST['marca'];
   $descripcion = $_POST['descripcion'];
   $precio = $_POST['precio'];
+  $precio_descuento = !empty($_POST['precio_descuento']) ? $_POST['precio_descuento'] : 'NULL';
   $categoria = $_POST['categoria'];
   $stock = $_POST['stock'];
 
@@ -23,6 +24,7 @@ if (isset($_POST['actualizar'])) {
           marca = '$marca',
           descripcion = '$descripcion',
           precio = '$precio',
+          precio_descuento = $precio_descuento,
           categoria = '$categoria',
           stock = '$stock'
           WHERE id = $id";
@@ -36,11 +38,12 @@ if (isset($_POST['guardar'])) {
   $marca = $_POST['marca'];
   $descripcion = $_POST['descripcion'];
   $precio = $_POST['precio'];
+  $precio_descuento = !empty($_POST['precio_descuento']) ? $_POST['precio_descuento'] : 'NULL';
   $categoria = $_POST['categoria'];
   $stock = $_POST['stock'];
 
-  $sql = "INSERT INTO productos (marca, descripcion, precio, categoria, stock)
-          VALUES ('$marca', '$descripcion', '$precio', '$categoria', '$stock')";
+  $sql = "INSERT INTO productos (marca, descripcion, precio, precio_descuento, categoria, stock)
+          VALUES ('$marca', '$descripcion', '$precio', $precio_descuento, '$categoria', '$stock')";
   $conn->query($sql);
   header('Location: products.php');
   exit;
@@ -86,8 +89,19 @@ $productos = $conn->query("SELECT * FROM productos ORDER BY marca, precio ASC");
         <input type="text" name="descripcion" placeholder="Descripción" required
                value="<?php echo $productoEditar ? htmlspecialchars($productoEditar['descripcion']) : ''; ?>">
 
-        <input type="number" step="0.01" name="precio" placeholder="Precio" required
-               value="<?php echo $productoEditar ? $productoEditar['precio'] : ''; ?>">
+        <div class="precio-grid">
+          <div class="precio-field">
+            <label>Precio Original</label>
+            <input type="number" step="0.01" name="precio" placeholder="Precio original" required
+                   value="<?php echo $productoEditar ? $productoEditar['precio'] : ''; ?>">
+          </div>
+
+          <div class="precio-field">
+            <label>Precio con Descuento (opcional)</label>
+            <input type="number" step="0.01" name="precio_descuento" placeholder="Precio con descuento"
+                   value="<?php echo $productoEditar && $productoEditar['precio_descuento'] ? $productoEditar['precio_descuento'] : ''; ?>">
+          </div>
+        </div>
 
         <input type="text" name="categoria" placeholder="Categoría (opcional)"
                value="<?php echo $productoEditar ? htmlspecialchars($productoEditar['categoria']) : ''; ?>">
@@ -114,7 +128,20 @@ $productos = $conn->query("SELECT * FROM productos ORDER BY marca, precio ASC");
             <div class="tarjeta">
               <h3><?php echo htmlspecialchars($p['marca']); ?></h3>
               <p><?php echo htmlspecialchars($p['descripcion']); ?></p>
-              <p class="precio">$<?php echo number_format($p['precio'], 2); ?></p>
+
+              <div class="precios-container">
+                <?php if ($p['precio_descuento']): ?>
+                  <p class="precio-original">$<?php echo number_format($p['precio'], 2); ?></p>
+                  <p class="precio-descuento">$<?php echo number_format($p['precio_descuento'], 2); ?></p>
+                  <?php
+                    $descuento_porcentaje = (($p['precio'] - $p['precio_descuento']) / $p['precio']) * 100;
+                  ?>
+                  <span class="etiqueta-descuento">-<?php echo round($descuento_porcentaje); ?>%</span>
+                <?php else: ?>
+                  <p class="precio">$<?php echo number_format($p['precio'], 2); ?></p>
+                <?php endif; ?>
+              </div>
+
               <?php if ($p['categoria']): ?>
                 <p><strong>Categoría:</strong> <?php echo htmlspecialchars($p['categoria']); ?></p>
               <?php endif; ?>

@@ -22,6 +22,7 @@ CREATE TABLE productos (
   marca VARCHAR(100) NOT NULL,
   descripcion TEXT NOT NULL,
   precio DECIMAL(10,2) NOT NULL,
+  precio_descuento DECIMAL(10,2) DEFAULT NULL,
   categoria VARCHAR(100),
   stock INT DEFAULT 0
 );
